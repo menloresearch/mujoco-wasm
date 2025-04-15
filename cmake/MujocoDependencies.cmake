@@ -31,7 +31,7 @@ set(MUJOCO_DEP_VERSION_MarchingCubeCpp
     CACHE STRING "Version of `MarchingCubeCpp` to be fetched."
 )
 set(MUJOCO_DEP_VERSION_ccd
-    7931e764a19ef6b21b443376c699bbc9c6d4fba8 # v2.1
+    05a54749cb3dede03d56d6c6e9deb643c9b05ad6
     CACHE STRING "Version of `ccd` to be fetched."
 )
 set(MUJOCO_DEP_VERSION_qhull
@@ -106,7 +106,14 @@ if(NOT TARGET lodepng)
     add_library(lodepng STATIC ${LODEPNG_HEADERS} ${LODEPNG_SRCS})
     target_compile_options(lodepng PRIVATE ${MUJOCO_MACOS_COMPILE_OPTIONS})
     target_link_options(lodepng PRIVATE ${MUJOCO_MACOS_LINK_OPTIONS})
-    target_include_directories(lodepng PUBLIC ${lodepng_SOURCE_DIR})
+    if (EMSCRIPTEN)
+      target_include_directories(lodepng PUBLIC
+        $<BUILD_INTERFACE:${lodepng_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>
+      )
+    else()
+      target_include_directories(lodepng PUBLIC ${lodepng_SOURCE_DIR})
+    endif()
   endif()
 endif()
 
@@ -215,7 +222,7 @@ findorfetch(
   LIBRARY_NAME
   ccd
   GIT_REPO
-  https://github.com/danfis/libccd.git
+  https://github.com/menloresearch/libccd.git
   GIT_TAG
   ${MUJOCO_DEP_VERSION_ccd}
   TARGETS

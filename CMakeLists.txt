@@ -22,6 +22,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0072 NEW)
 # Avoid BUILD_SHARED_LIBS getting overridden by an option() in ccd.
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# Avoid disruption to building due to deprecated FetchContent_Populate() -> FetchContent_MakeAvailable()
+set(CMAKE_POLICY_DEFAULT_CMP0169 OLD)
 
 # This line has to appear before 'PROJECT' in order to be able to disable incremental linking
 set(MSVC_INCREMENTAL_DEFAULT ON)
@@ -38,10 +40,14 @@ enable_language(CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-option(MUJOCO_BUILD_EXAMPLES "Build samples for MuJoCo" ON)
-option(MUJOCO_BUILD_SIMULATE "Build simulate library for MuJoCo" ON)
-option(MUJOCO_BUILD_TESTS "Build tests for MuJoCo" ON)
-option(MUJOCO_TEST_PYTHON_UTIL "Build and test utility libraries for Python bindings" ON)
+option(MUJOCO_BUILD_EXAMPLES "Build samples for MuJoCo" OFF)
+option(MUJOCO_BUILD_SIMULATE "Build simulate library for MuJoCo" OFF)
+option(MUJOCO_BUILD_TESTS "Build tests for MuJoCo" OFF)
+option(MUJOCO_TEST_PYTHON_UTIL "Build and test utility libraries for Python bindings" OFF)
+
+if (EMSCRIPTEN)
+  add_compile_options(-Wno-deprecated-literal-operator)
+endif()
 
 if(APPLE AND (MUJOCO_BUILD_EXAMPLES OR MUJOCO_BUILD_SIMULATE))
   enable_language(OBJC)
@@ -130,9 +136,20 @@ set_target_properties(
 # CMake's built-in FRAMEWORK option doesn't give us control over the dylib name inside the
 # Framework. We instead make our own Framework here.
 if(APPLE AND MUJOCO_BUILD_MACOS_FRAMEWORKS)
-  set(TAPI
-      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/tapi"
+  find_program(TAPI tapi
+    PATHS
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin"
+      "/Library/Developer/CommandLineTools/usr/bin"
+      "/usr/local/bin"
+      "/opt/homebrew/bin"
+      ENV PATH
+    DOC "Path to the tapi executable"
   )
+  
+  if(NOT TAPI)
+    message(WARNING "Could not find tapi, which is required for building macOS frameworks")
+  endif()
+
   configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/dist/Info.plist.framework.in
     ${CMAKE_CURRENT_SOURCE_DIR}/dist/Info.framework.plist
@@ -191,14 +208,30 @@ endif()
 
 if(NOT (APPLE AND MUJOCO_BUILD_MACOS_FRAMEWORKS))
   # Install the libraries.
-  install(
-    TARGETS mujoco
-    EXPORT ${PROJECT_NAME}
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT runtime
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT runtime
-    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT dev
-    PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/mujoco" COMPONENT dev
-  )
+  if (EMSCRIPTEN)
+    install(
+      TARGETS mujoco lodepng
+      EXPORT ${PROJECT_NAME}
+      RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT runtime
+      LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT runtime
+      ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT dev
+      PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/mujoco" COMPONENT dev
+    )
+
+    install(
+      FILES ${lodepng_SOURCE_DIR}/lodepng.h
+      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    )
+  else()
+    install(
+      TARGETS mujoco
+      EXPORT ${PROJECT_NAME}
+      RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT runtime
+      LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT runtime
+      ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT dev
+      PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/mujoco" COMPONENT dev
+    )
+  endif()
 
   set(CONFIG_PACKAGE_LOCATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
 

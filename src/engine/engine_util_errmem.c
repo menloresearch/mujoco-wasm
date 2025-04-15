@@ -14,22 +14,23 @@
 
 #include "engine/engine_util_errmem.h"
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <time.h>
 
-#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include <unistd.h>
 #endif
 
 #include "engine/engine_array_safety.h"
 #include "engine/engine_macro.h"
 
-//------------------------- cross-platform aligned malloc/free -------------------------------------
+//------------------------- cross-platform aligned malloc/free
+//-------------------------------------
 
-static inline void* mju_alignedMalloc(size_t size, size_t align) {
+static inline void *mju_alignedMalloc(size_t size, size_t align) {
 #ifdef _WIN32
   return _aligned_malloc(size, align);
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
@@ -37,7 +38,7 @@ static inline void* mju_alignedMalloc(size_t size, size_t align) {
 #endif
 }
 
-static inline void mju_alignedFree(void* ptr) {
+static inline void mju_alignedFree(void *ptr) {
 #ifdef _WIN32
   _aligned_free(ptr);
 #else
@@ -45,15 +46,14 @@ static inline void mju_alignedFree(void* ptr) {
 #endif
 }
 
-
-//------------------------- default user handlers --------------------------------------------------
+//------------------------- default user handlers
+//--------------------------------------------------
 
 // define and clear handlers
-void (*mju_user_error) (const char*) = 0;
-void (*mju_user_warning) (const char*) = 0;
-void* (*mju_user_malloc) (size_t) = 0;
-void (*mju_user_free) (void*) = 0;
-
+void (*mju_user_error)(const char *) = 0;
+void (*mju_user_warning)(const char *) = 0;
+void *(*mju_user_malloc)(size_t) = 0;
+void (*mju_user_free)(void *) = 0;
 
 // restore default processing
 void mju_clearHandlers(void) {
@@ -63,9 +63,10 @@ void mju_clearHandlers(void) {
   mju_user_free = 0;
 }
 
-//------------------------- internal-only handlers -------------------------------------------------
+//------------------------- internal-only handlers
+//-------------------------------------------------
 
-typedef void (*callback_fn)(const char*);
+typedef void (*callback_fn)(const char *);
 
 static mjTHREADLOCAL callback_fn _mjPRIVATE_tls_error_fn = NULL;
 static mjTHREADLOCAL callback_fn _mjPRIVATE_tls_warning_fn = NULL;
@@ -86,25 +87,28 @@ void _mjPRIVATE__set_tls_warning_fn(callback_fn h) {
   _mjPRIVATE_tls_warning_fn = h;
 }
 
-//------------------------------ error hadling -----------------------------------------------------
+//------------------------------ error hadling
+//-----------------------------------------------------
 
 // write datetime, type: message to MUJOCO_LOG.TXT
-void mju_writeLog(const char* type, const char* msg) {
+void mju_writeLog(const char *type, const char *msg) {
   time_t rawtime;
   struct tm timeinfo;
-  FILE* fp = fopen("MUJOCO_LOG.TXT", "a+t");
+  FILE *fp = fopen("MUJOCO_LOG.TXT", "a+t");
   if (fp) {
     // get time
     time(&rawtime);
 
-#if defined(_POSIX_C_SOURCE) || defined(__APPLE__) || defined(__STDC_VERSION_TIME_H__)
+#if defined(_POSIX_C_SOURCE) || defined(__APPLE__) ||                          \
+    defined(__STDC_VERSION_TIME_H__) || defined(__EMSCRIPTEN__)
     localtime_r(&rawtime, &timeinfo);
 #elif _MSC_VER
     localtime_s(&timeinfo, &rawtime);
 #elif __STDC_LIB_EXT1__
     localtime_s(&rawtime, &timeinfo);
 #else
-    #error "Thread-safe version of `localtime` is not present in the standard C library"
+#error                                                                         \
+    "Thread-safe version of `localtime` is not present in the standard C library"
 #endif
 
     // write to log file
@@ -113,9 +117,7 @@ void mju_writeLog(const char* type, const char* msg) {
   }
 }
 
-
-
-void mju_error_raw(const char* msg) {
+void mju_error_raw(const char *msg) {
   if (_mjPRIVATE_tls_error_fn) {
     _mjPRIVATE_tls_error_fn(msg);
   } else if (mju_user_error) {
@@ -131,29 +133,23 @@ void mju_error_raw(const char* msg) {
   }
 }
 
-
-
-void mju_error_v(const char* msg, va_list args) {
+void mju_error_v(const char *msg, va_list args) {
   // Format msg into errmsg
   char errmsg[1024];
   vsnprintf(errmsg, mjSIZEOFARRAY(errmsg), msg, args);
   mju_error_raw(errmsg);
 }
 
-
-
 // write message to logfile and console, pause and exit
-void mju_error(const char* msg, ...) {
+void mju_error(const char *msg, ...) {
   va_list args;
   va_start(args, msg);
   mju_error_v(msg, args);
   va_end(args);
 }
 
-
-
 // write message to logfile and console
-void mju_warning(const char* msg, ...) {
+void mju_warning(const char *msg, ...) {
   char wrnmsg[1024];
 
   // Format msg into wrnmsg
@@ -173,37 +169,26 @@ void mju_warning(const char* msg, ...) {
   }
 }
 
-
 // error with int argument
-void mju_error_i(const char* msg, int i) {
-  mju_error(msg, i);
-}
-
+void mju_error_i(const char *msg, int i) { mju_error(msg, i); }
 
 // warning with int argument
-void mju_warning_i(const char* msg, int i) {
-  mju_warning(msg, i);
-}
-
+void mju_warning_i(const char *msg, int i) { mju_warning(msg, i); }
 
 // error string argument
-void mju_error_s(const char* msg, const char* text) {
-  mju_error(msg, text);
-}
-
+void mju_error_s(const char *msg, const char *text) { mju_error(msg, text); }
 
 // warning string argument
-void mju_warning_s(const char* msg, const char* text) {
+void mju_warning_s(const char *msg, const char *text) {
   mju_warning(msg, text);
 }
 
-
-
-//------------------------------ malloc and free ---------------------------------------------------
+//------------------------------ malloc and free
+//---------------------------------------------------
 
 // allocate memory; byte-align on 64; pad size to multiple of 64
-void* mju_malloc(size_t size) {
-  void* ptr = 0;
+void *mju_malloc(size_t size) {
+  void *ptr = 0;
 
   // user allocator
   if (mju_user_malloc) {
@@ -213,8 +198,8 @@ void* mju_malloc(size_t size) {
   // default allocator
   else {
     // pad size to multiple of 64
-    if ((size%64)) {
-      size += 64 - (size%64);
+    if ((size % 64)) {
+      size += 64 - (size % 64);
     }
 
     // allocate
@@ -229,9 +214,8 @@ void* mju_malloc(size_t size) {
   return ptr;
 }
 
-
 // free memory
-void mju_free(void* ptr) {
+void mju_free(void *ptr) {
   // return if null
   if (!ptr) {
     return;
