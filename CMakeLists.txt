@@ -46,7 +46,6 @@ option(MUJOCO_BUILD_TESTS "Build tests for MuJoCo" OFF)
 option(MUJOCO_TEST_PYTHON_UTIL "Build and test utility libraries for Python bindings" OFF)
 
 if (EMSCRIPTEN)
-  # set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_LIBDIR}")
   set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "Installation prefix" FORCE)
   add_compile_options(-Wno-deprecated-literal-operator)
 endif()
