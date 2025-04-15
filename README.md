@@ -80,9 +80,23 @@ and macOS (universal). This is the recommended way to use the software.
 
 ### Building from source
 
+#### For other platform
+
 Users who wish to build MuJoCo from source should consult the [build from
 source] section of the documentation. However, note that the commit at
 the tip of the `main` branch may be unstable.
+
+#### For WebAssembly
+
+You will need to install `emscripten` and all other necessary tools as with the instruction above. 
+Run the following command to build from source:
+
+```bash
+mkdir build
+cd build
+emcmake cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake --build . --target install
+```
 
 ### Python (>= 3.9)
 
